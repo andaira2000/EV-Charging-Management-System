@@ -21,6 +21,7 @@ interface ChargingStation {
 export default function Dashboard() {
   const [chargingStations, setChargingStations] = useState<ChargingStation[]>([]);
 
+
   // Create a custom icon using images from the public folder
   const customIcon = new L.Icon({
     iconUrl: "/images/icon/marker-icon.png",  // Use URL from public folder
@@ -31,12 +32,63 @@ export default function Dashboard() {
     shadowSize: [41, 41],
   });
 
+  async function fetchChargingStations() {
+    // Your backend API endpoint running on localhost
+    const apiUrl = 'http://127.0.0.1:8000/charging-stations/all';
+
+    // JWT access token - assuming you already have the token stored (e.g., in localStorage)
+    const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzMzMjY3MTkwLCJpYXQiOjE3MzMyNjM1OTAsImp0aSI6IjVhNDNiNDg3MmE3YzQ3NWNiNTFhMWUxM2IzMGIxNjE5Iiwic3ViIjoiMjBkYzM5NmMtNjAxMS03MDk1LTQ0YjUtOTRmYTRhZjdiMDgyIn0.h1jZDzcDrcSio7VvkkRDFrY7JEUxyN4dy0U4wb_jTj8";
+
+    if (!accessToken) {
+      console.error("Access token not found. Please log in.");
+      return;
+    }
+
+    try {
+      // Make the GET request to the API with Authorization header
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Check if the response is ok (status code 200-299)
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // Parse the JSON response
+      const chargingStationsFromBackend = await response.json();
+
+      // Handle the response data (e.g., update the UI)
+      console.log('Charging Stations:', chargingStationsFromBackend);
+      // Here you can call a function to display the charging stations in your UI
+
+      setChargingStations(chargingStationsFromBackend.map((station) => ( {
+        ID: station.station_id,
+        AddressInfo: {
+          Title: station.location,
+          Latitude: station.latitude,
+          Longitude: station.longitude
+        },
+        Connections: [
+          {
+            PowerKW: station.power_capacity
+          }
+        ]
+      })));
+      
+
+    } catch (error) {
+      // Handle errors (e.g., token expiration, network issues)
+      console.error('Failed to fetch charging stations:', error.message);
+    }
+  }
+
   useEffect(() => {
-    fetch(
-      "https://api.openchargemap.io/v3/poi?latitude=51.509865&longitude=-0.118092&distance=10&minpowerkw=50&key=334e438a-617a-45e6-82d9-59b9423c7962"
-    )
-      .then((response) => response.json())
-      .then((data) => setChargingStations(data));
+    fetchChargingStations()
   }, []);
 
   const handleReserve = (stationId: number) => {
