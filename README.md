@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://ev-charging-management-system.vercel.app/"><img src="https://img.shields.io/badge/▶_Live_demo-ev--charging--management--system.vercel.app-00C853?style=flat&logo=vercel&logoColor=white&labelColor=0B3D2E" alt="Live demo on Vercel"></a>
+  <a href="https://ev-charging-management-system.vercel.app/"><img src="https://img.shields.io/badge/▶_Live_demo-ev--charging--management--system.vercel.app-00C853?style=flat&labelColor=0B3D2E" alt="Live demo on Vercel"></a>
 </p>
 
 https://github.com/user-attachments/assets/c539d881-1e4f-452f-a72d-35e3e923e527
