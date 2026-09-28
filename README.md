@@ -13,14 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://ev-charging-management-system.vercel.app/"><img src="https://img.shields.io/badge/▶_Live_demo-ev--charging--management--system.vercel.app-000?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2b3137" alt="Live demo on Vercel"></a>
+  <a href="https://ev-charging-management-system.vercel.app/"><img src="https://img.shields.io/badge/▶_Live_demo-ev--charging--management--system.vercel.app-00C853?style=flat&labelColor=0B3D2E" alt="Live demo on Vercel"></a>
 </p>
 
 https://github.com/user-attachments/assets/c539d881-1e4f-452f-a72d-35e3e923e527
 
 <p align="center"><sub>Find a station, reserve a slot, pay with Stripe. <a href="https://ev-charging-management-system.vercel.app/">Try it yourself →</a></sub></p>
 
-## Your turn
+## Try it
 
 Pick a station on the map, choose a start and end time, and hit **Reserve**. If the slot is free, you land on a Stripe checkout for exactly the energy you booked. If you don't pay within 30 minutes, the slot goes back to everyone else. Every open map sees the change instantly.
 
