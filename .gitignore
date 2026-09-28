@@ -3,3 +3,6 @@
 backend/debug.log
 .DS_Store
 
+backend/.env
+backend/.venv/
+
