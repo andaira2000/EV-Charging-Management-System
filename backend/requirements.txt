@@ -3,9 +3,6 @@ djangorestframework
 djangorestframework-simplejwt
 djangorestframework-stubs
 django-cors-headers
-django-cognito-jwt
-boto3
-boto3-stubs
 psycopg[binary]
 stripe
 celery[redis]

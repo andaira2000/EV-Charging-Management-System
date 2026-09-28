@@ -8,9 +8,9 @@ from myapp.views.charging_station_views import (
     DeleteChargingStationView,
     UpdateChargingStationView,
 )
-from myapp.views.cognito_auth_views import (
-    CognitoSignupView,
-    CognitoLoginView,
+from myapp.views.auth_views import (
+    SignupView,
+    LoginView,
     ValidateTokenView,
 )
 from myapp.views.reservation_views import (
@@ -30,8 +30,8 @@ from myapp.views.notification_views import RequestNotificationView
 
 urlpatterns = [
     path("health/", health_check, name="health_check"),
-    path("signup/", CognitoSignupView.as_view(), name="signup"),
-    path("login/", CognitoLoginView.as_view(), name="login"),
+    path("signup/", SignupView.as_view(), name="signup"),
+    path("login/", LoginView.as_view(), name="login"),
     path("validate-token/", ValidateTokenView.as_view(), name="validate-token"),
     path(
         "charging-stations/add/",

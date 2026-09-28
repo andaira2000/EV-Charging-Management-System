@@ -1,5 +1,6 @@
 import os
 import dj_database_url
+from datetime import timedelta
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -90,19 +91,17 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-COGNITO_AWS_REGION = os.getenv("COGNITO_AWS_REGION")
-COGNITO_USER_POOL = os.getenv("COGNITO_USER_POOL")
-COGNITO_AUDIENCE = os.getenv("COGNITO_AUDIENCE")
-COGNITO_CLIENT_SECRET = os.getenv("COGNITO_CLIENT_SECRET")
-
-COGNITO_USER_MODEL = "myapp.UserProfile"
 AUTH_USER_MODEL = "myapp.UserProfile"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "django_cognito_jwt.JSONWebTokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
 }
 
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS") == "True"
