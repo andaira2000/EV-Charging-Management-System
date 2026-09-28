@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/c539d881-1e4f-452f-a72d-35e3e923e527
 
 <p align="center"><sub>Find a station, reserve a slot, pay with Stripe. <a href="https://ev-charging-management-system.vercel.app/">Try it yourself →</a></sub></p>
 
-## Your turn
+## Try it
 
 Pick a station on the map, choose a start and end time, and hit **Reserve**. If the slot is free, you land on a Stripe checkout for exactly the energy you booked. If you don't pay within 30 minutes, the slot goes back to everyone else. Every open map sees the change instantly.
 
