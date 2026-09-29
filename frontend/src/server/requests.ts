@@ -128,16 +128,6 @@ async function createCheckoutSession(
   });
 }
 
-async function getMostVisitedStation(token: string) {
-  return fetch(`${SERVER_URL}/reservations/most-visited/`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-}
-
 async function getAllReservations(token: string) {
   return fetch(`${SERVER_URL}/get-all-reservations/`, {
     method: "GET",
@@ -158,13 +148,18 @@ async function getUserReservations(token: string) {
   });
 }
 
-async function updateChargingStation(token: string, stationId: number) {
+async function updateChargingStation(
+  token: string,
+  stationId: number,
+  data: object,
+) {
   return fetch(`${SERVER_URL}/charging-stations/${stationId}/update/`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify(data),
   });
 }
 
@@ -201,6 +196,16 @@ async function getUserPayments(token: string) {
   });
 }
 
+async function getSellerAnalytics(token: string, days: number) {
+  return fetch(`${SERVER_URL}/analytics/?days=${days}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 const Server = {
   validateToken,
   login,
@@ -210,13 +215,13 @@ const Server = {
   addChargingStation,
   deleteChargingStation,
   createCheckoutSession,
-  getMostVisitedStation,
   updateChargingStation,
   getAllReservations,
   getUserReservations,
   cancelReservation,
   requestNotification,
   getUserPayments,
+  getSellerAnalytics,
   SERVER_URL,
   SERVER_URL_SOCKET,
 };

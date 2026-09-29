@@ -1,12 +1,11 @@
 import { Metadata } from "next";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import React, { useMemo } from "react";
-import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import dynamic from "next/dynamic";
 
 export const metadata: Metadata = {
-  title: "Find Charging Stations",
-  description: "Find charging stations",
+  title: "Find charging stations",
+  description: "Find charging stations on a live map and book a slot.",
 };
 
 export default function Home() {
@@ -20,11 +19,7 @@ export default function Home() {
   return (
     <>
       <DefaultLayout>
-        <div className="w-full max-w-[970px]">
-          <Breadcrumb pageName="" />
-
-          <OpenChargeMap />
-        </div>
+        <OpenChargeMap />
       </DefaultLayout>
     </>
   );

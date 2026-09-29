@@ -1,7 +1,21 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
+import Link from "next/link";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
+import Tabs from "@/components/common/Tabs";
+import {
+  Badge,
+  LocationCell,
+  TableCard,
+  TableMessageRow,
+  Td,
+  Th,
+} from "@/components/common/Table";
+import { formatDuration, formatTimeRange } from "@/lib/format";
 
 const Reservations: React.FC = () => {
   const [reservations, setReservations] = useState<any[]>([]);
@@ -14,17 +28,27 @@ const Reservations: React.FC = () => {
   );
 
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     const fetchReservations = async () => {
       const token = Cookies.get("accessToken") ?? "";
       try {
         const response = await Server.getUserReservations(token);
-        const data = await response.json();
-        console.log("Reservations", data);
-        setReservations(data);
+        if (!response.ok) {
+          setError(
+            await getErrorMessage(response, "Could not load your reservations."),
+          );
+          return;
+        }
+        setReservations(await response.json());
       } catch (error) {
         console.error("Error fetching reservations:", error);
+        setError("Network error. Please try again later.");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -39,23 +63,17 @@ const Reservations: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const calculateBatteryLevel = (startTime: Date, endTime: Date) => {
-    const now = currentTime;
+  // How far through the booked slot we are, from 0 to 100.
+  const calculateProgress = (startTime: Date, endTime: Date) => {
     const totalDuration = endTime.getTime() - startTime.getTime();
-    const elapsed = now.getTime() - startTime.getTime();
-    const batteryLevel = Math.min(
-      Math.max((elapsed / totalDuration) * 100, 0),
-      100,
+    const elapsed = currentTime.getTime() - startTime.getTime();
+    return Math.floor(
+      Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100),
     );
-    return `${Math.floor(batteryLevel)}%`;
   };
 
-  const calculateTimeToFullCharge = (endTime: Date) => {
-    const now = currentTime;
-    const timeRemaining = Math.max(endTime.getTime() - now.getTime(), 0);
-    const minutesRemaining = Math.ceil(timeRemaining / (1000 * 60));
-    return `${minutesRemaining} minutes`;
-  };
+  const calculateTimeLeft = (endTime: Date) =>
+    formatDuration(Math.max(endTime.getTime() - currentTime.getTime(), 0));
 
   const getFilteredReservations = () => {
     const now = currentTime;
@@ -91,128 +109,173 @@ const Reservations: React.FC = () => {
     if (!reservationToCancel) return;
 
     const token = Cookies.get("accessToken") ?? "";
+    setError("");
+    setCancelling(true);
     try {
-      await Server.cancelReservation(token, reservationToCancel);
-      setReservations((prev) =>
-        prev.filter((reservation) => reservation.id !== reservationToCancel),
+      const response = await Server.cancelReservation(
+        token,
+        reservationToCancel,
       );
-      alert("Reservation canceled successfully.");
+      if (response.ok) {
+        setReservations((prev) =>
+          prev.filter((reservation) => reservation.id !== reservationToCancel),
+        );
+      } else {
+        setError(
+          await getErrorMessage(
+            response,
+            "Failed to cancel the reservation. Please try again.",
+          ),
+        );
+      }
     } catch (error) {
       console.error("Error canceling reservation:", error);
-      alert("Failed to cancel reservation. Please try again.");
+      setError("Network error. Please try again later.");
     } finally {
+      setCancelling(false);
       closeCancelPopup();
     }
+  };
+
+  const canCancel = activeTab === "active" || activeTab === "upcoming";
+
+  const emptyMessages = {
+    active: "You're not charging anywhere right now.",
+    upcoming: "You have no upcoming reservations.",
+    past: "You have no past reservations yet.",
   };
 
   return (
     <div className="w-full p-6">
       {/* Tabs */}
-      <ul className="mx-auto mb-6 flex w-full max-w-7xl items-center justify-center gap-4">
-        {["active", "upcoming", "past"].map((tab, index) => (
-          <React.Fragment key={tab}>
-            <li className="flex-1 text-center">
-              <button
-                onClick={() => setActiveTab(tab as any)}
-                className={`group relative w-full rounded-[7px] px-3.5 py-3 font-medium duration-300 ease-in-out ${
-                  activeTab === tab
-                    ? "bg-primary/[.07] text-primary dark:bg-white/10 dark:text-white"
-                    : "text-dark-4 hover:bg-gray-100 hover:shadow-md dark:text-gray-5 dark:hover:bg-white/10 dark:hover:text-white"
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            </li>
-            {index < 2 && (
-              <li className="hidden text-gray-400 dark:text-gray-600 md:block">
-                |
-              </li>
-            )}
-          </React.Fragment>
-        ))}
-      </ul>
+      <div className="mb-6">
+        <Tabs
+          tabs={[
+            { value: "active", label: "Active" },
+            { value: "upcoming", label: "Upcoming" },
+            { value: "past", label: "Past" },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
+
+      {error && (
+        <p className="mx-auto mb-4 max-w-7xl font-medium text-red-500">
+          {error}
+        </p>
+      )}
 
       {/* Table */}
-      <div className="mx-auto w-full max-w-7xl overflow-x-auto bg-white shadow-md dark:bg-dark-2">
-        <table className="min-w-full table-auto">
-          <thead>
-            <tr className="border-b dark:border-dark-3">
-              <th className="px-6 py-4">Location</th>
-              {activeTab === "active" ? (
-                <>
-                  <th className="px-6 py-4">Battery Level</th>
-                  <th className="px-6 py-4">Time to Full Charge</th>
-                </>
-              ) : (
-                <>
-                  <th className="px-6 py-4">Start Time</th>
-                  <th className="px-6 py-4">End Time</th>
-                </>
-              )}
-              {(activeTab === "active" || activeTab === "upcoming") && (
-                <th className="px-6 py-4">Actions</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredReservations.length > 0 ? (
-              filteredReservations.map((reservation, idx) => (
+      <TableCard>
+        <thead>
+          <tr>
+            <Th>Location</Th>
+            {activeTab === "active" ? (
+              <>
+                <Th>Session progress</Th>
+                <Th>Time left</Th>
+              </>
+            ) : (
+              <>
+                <Th>When</Th>
+                <Th>Duration</Th>
+              </>
+            )}
+            <Th>Payment</Th>
+            {canCancel && <Th className="text-right">Actions</Th>}
+          </tr>
+        </thead>
+        <tbody>
+          {filteredReservations.length > 0 ? (
+            filteredReservations.map((reservation) => {
+              const start = new Date(reservation.start_time);
+              const end = new Date(reservation.end_time);
+              const progress = calculateProgress(start, end);
+
+              return (
                 <tr
-                  key={idx}
-                  className="border-t hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-2"
+                  key={reservation.id}
+                  className="hover:bg-gray-1 dark:hover:bg-dark-3"
                 >
-                  <td className="px-6 py-4">{reservation.charging_station}</td>
+                  <Td>
+                    <LocationCell location={reservation.charging_station} />
+                  </Td>
                   {activeTab === "active" ? (
                     <>
-                      <td className="px-6 py-4">
-                        {calculateBatteryLevel(
-                          new Date(reservation.start_time),
-                          new Date(reservation.end_time),
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {calculateTimeToFullCharge(
-                          new Date(reservation.end_time),
-                        )}
-                      </td>
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <div className="h-2 w-28 overflow-hidden rounded-full bg-gray-3 dark:bg-dark-4">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <span className="w-10">{progress}%</span>
+                        </div>
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {calculateTimeLeft(end)}
+                      </Td>
                     </>
                   ) : (
                     <>
-                      <td className="px-6 py-4">
-                        {new Date(reservation.start_time).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        {new Date(reservation.end_time).toLocaleString()}
-                      </td>
+                      <Td className="whitespace-nowrap">
+                        {formatTimeRange(start, end)}
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {formatDuration(end.getTime() - start.getTime())}
+                      </Td>
                     </>
                   )}
-                  {(activeTab === "active" || activeTab === "upcoming") && (
-                    <td className="px-6 py-4">
+                  <Td>
+                    {reservation.is_paid === true && (
+                      <Badge color="#22AD5C">Paid</Badge>
+                    )}
+                    {reservation.is_paid === false && (
+                      <Badge color="#F59E0B">Awaiting payment</Badge>
+                    )}
+                  </Td>
+                  {canCancel && (
+                    <Td className="text-right">
                       <button
                         onClick={() => openCancelPopup(reservation.id)}
-                        className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                        className="rounded-lg border border-red-500 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500 hover:text-white"
                       >
                         Cancel
                       </button>
-                    </td>
+                    </Td>
                   )}
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={
-                    activeTab === "active" || activeTab === "upcoming" ? 4 : 3
-                  }
-                  className="px-6 py-4 text-center"
-                >
-                  No reservations found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              );
+            })
+          ) : (
+            <TableMessageRow colSpan={canCancel ? 5 : 4}>
+              {loading ? (
+                <>
+                  <div className="flex items-center justify-center gap-2">
+                    <Spinner />
+                    Loading your reservations…
+                  </div>
+                  <SlowServerHint active={loading} />
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-dark dark:text-white">
+                    {emptyMessages[activeTab]}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <Link href="/dashboard" className="text-primary">
+                      Find a charging station on the map
+                    </Link>{" "}
+                    to book a slot.
+                  </p>
+                </>
+              )}
+            </TableMessageRow>
+          )}
+        </tbody>
+      </TableCard>
 
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -234,9 +297,11 @@ const Reservations: React.FC = () => {
               </button>
               <button
                 onClick={handleCancelReservation}
-                className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                disabled={cancelling}
+                className="flex items-center gap-2 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Yes, Cancel
+                {cancelling && <Spinner className="h-4 w-4" />}
+                {cancelling ? "Cancelling…" : "Yes, Cancel"}
               </button>
             </div>
           </div>

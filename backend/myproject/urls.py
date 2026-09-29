@@ -27,6 +27,7 @@ from myapp.views.stripe_views import (
 )
 from myapp.views.payment_views import UserPaymentsView
 from myapp.views.notification_views import RequestNotificationView
+from myapp.views.analytics_views import SellerAnalyticsView
 
 urlpatterns = [
     path("health/", health_check, name="health_check"),
@@ -95,6 +96,7 @@ urlpatterns = [
         name="most-visited-station",
     ),
     path("payments/", UserPaymentsView.as_view(), name="user_payments"),
+    path("analytics/", SellerAnalyticsView.as_view(), name="seller-analytics"),
     path(
         "notifications/request/",
         RequestNotificationView.as_view(),

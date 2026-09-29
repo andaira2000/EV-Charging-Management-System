@@ -1,15 +1,22 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import FilterSidebar from "../Map/FilterSideBar";
-import { IconButton } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
-import ReserveButton from "../Map/ReserveButton";
+import MapFilters, {
+  DEFAULT_MAP_FILTERS,
+  MapFilterValues,
+} from "../Map/MapFilters";
 import useReservationUpdates from "@/hooks/useReservationUpdates";
 import { fetchStations } from "@/utils";
-import NotifyButton from "../Map/NotifyButton";
+import StationPopup from "../Map/StationPopup";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
+import MapLegend from "../Map/MapLegend";
+import {
+  STATION_ICONS,
+  StationState,
+  getStationState,
+} from "../Map/stationStatus";
 
 interface ChargingStationData {
   station_id: number;
@@ -24,32 +31,16 @@ interface ChargingStationData {
   connector_types: string;
 }
 
-const customIcon = new L.Icon({
-  iconUrl: "/images/icon/marker-icon.png",
-  shadowUrl: "/images/icon/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const isStationAvailableNow = (station: ChargingStationData) => {
+const checkAvailability = (
+  stations: ChargingStationData[],
+  setStationStates: (states: Record<number, StationState>) => void,
+) => {
   const now = new Date();
-  const hasActiveReservation = station.reservations.some(
-    (reservation) =>
-      new Date(reservation.start_time) <= now &&
-      new Date(reservation.end_time) >= now,
-  );
-  return station.availability_status === "available" && !hasActiveReservation;
-};
-
-const checkAvailability = (stations: any, setAvailability: Function) => {
-  const updatedAvailability: Record<number, boolean> = {};
-  stations.forEach((station: any) => {
-    updatedAvailability[station.station_id] = isStationAvailableNow(station);
+  const updatedStates: Record<number, StationState> = {};
+  stations.forEach((station) => {
+    updatedStates[station.station_id] = getStationState(station, now);
   });
-  console.log("Updated availability: ", updatedAvailability);
-  setAvailability(updatedAvailability);
+  setStationStates(updatedStates);
 };
 
 export default function Dashboard() {
@@ -59,17 +50,15 @@ export default function Dashboard() {
   const [filteredChargingStations, setFilteredChargingStations] = useState<
     ChargingStationData[]
   >([]);
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    minPowerKw: 50,
-    distance: 10,
-    status: "All",
-  });
+  const [filters, setFilters] = useState<MapFilterValues>(DEFAULT_MAP_FILTERS);
   const [currentLocation, setCurrentLocation] = useState<
     [number, number] | null
   >(null);
 
-  const [availability, setAvailability] = useState<Record<number, boolean>>({});
+  const [stationStates, setStationStates] = useState<
+    Record<number, StationState>
+  >({});
+  const [loading, setLoading] = useState(true);
 
   useReservationUpdates(setChargingStations);
 
@@ -81,16 +70,14 @@ export default function Dashboard() {
         const isPowerValid = station.power_capacity >= minPowerKw;
 
         const isStatusValid =
-          status === "All" ||
-          (status === "Available" && availability[station.station_id]) ||
-          (status === "In Use" && !availability[station.station_id]);
+          status === "all" || stationStates[station.station_id] === status;
 
         return isPowerValid && isStatusValid;
       },
     );
 
     setFilteredChargingStations(filteredStations);
-  }, [filters, chargingStations]);
+  }, [filters, chargingStations, stationStates]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -110,6 +97,7 @@ export default function Dashboard() {
     fetchStations()
       .then((stations) => {
         setChargingStations(stations);
+        setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching stations:", error);
@@ -118,10 +106,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    checkAvailability(chargingStations, setAvailability);
+    checkAvailability(chargingStations, setStationStates);
 
     const intervalId = setInterval(() => {
-      checkAvailability(chargingStations, setAvailability);
+      checkAvailability(chargingStations, setStationStates);
     }, 2000);
 
     return () => clearInterval(intervalId);
@@ -140,82 +128,51 @@ export default function Dashboard() {
     return date.toISOString().replace("Z", "+00:00");
   };
 
-  const handleNotify = async (stationId: number) => {
-    try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/notifications/request",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-          body: JSON.stringify({
-            charging_station_id: stationId,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        alert("You will be notified when the station becomes available.");
-      } else {
-        alert("Failed to request notification.");
-      }
-    } catch (error) {
-      console.error("Error requesting notification:", error);
-    }
-  };
-
   return (
-    <div style={{ height: "100vh" }}>
-      <IconButton onClick={() => setSidebarOpen(true)}>
-        <MenuIcon />
-      </IconButton>
-      <FilterSidebar
-        open={isSidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        filters={filters}
-        setFilters={setFilters}
-      />
-      <MapContainer
-        center={currentLocation || [51.509865, -0.118092]}
-        zoom={13}
-        style={{ height: "500px", width: "100%" }}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {filteredChargingStations.map((station) => (
-          <Marker
-            key={station.station_id}
-            position={[station.latitude, station.longitude]}
-            icon={customIcon}
-          >
-            <Popup>
-              <strong>{station.location}</strong>
-              <br />
-              <strong>Power:</strong> {station.power_capacity} kW
-              <br />
-              <strong>Status: </strong>
-              <span
-                style={{
-                  color: availability[station.station_id] ? "green" : "red",
-                }}
+    <>
+      {/* Fills the screen below the header: 89px header + the layout's
+          vertical padding (p-4 / md:p-6 / 2xl:p-10). */}
+      <div className="relative h-[calc(100dvh-121px)] min-h-[400px] overflow-hidden rounded-lg shadow-md md:h-[calc(100dvh-137px)] 2xl:h-[calc(100dvh-169px)]">
+        <MapContainer
+          center={currentLocation || [51.509865, -0.118092]}
+          zoom={11}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {filteredChargingStations.map((station) => {
+            const state =
+              stationStates[station.station_id] ?? getStationState(station);
+
+            return (
+              <Marker
+                key={station.station_id}
+                position={[station.latitude, station.longitude]}
+                icon={STATION_ICONS[state]}
               >
-                {availability[station.station_id] ? "Available" : "In Use"}
-              </span>
-              <br />
-              {availability[station.station_id] ? (
-                <ReserveButton
-                  chargingStationId={station.station_id}
-                  startTime={getStartTime()}
-                  endTime={getEndTime()}
-                />
-              ) : (
-                <NotifyButton chargingStationId={station.station_id} />
-              )}
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
+                <Popup>
+                  <StationPopup
+                    station={station}
+                    state={state}
+                    startTime={getStartTime()}
+                    endTime={getEndTime()}
+                  />
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+        <MapLegend />
+        <MapFilters filters={filters} setFilters={setFilters} />
+        {loading && (
+          <div className="absolute inset-x-0 top-4 z-[1000] mx-auto flex w-fit flex-col items-center rounded-lg bg-white px-5 py-3 shadow-lg dark:bg-dark-2">
+            <div className="flex items-center gap-2 font-medium text-dark dark:text-white">
+              <Spinner />
+              Loading charging stations…
+            </div>
+            <SlowServerHint active={loading} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

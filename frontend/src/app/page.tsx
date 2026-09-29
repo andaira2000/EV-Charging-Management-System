@@ -3,8 +3,8 @@ import React from "react";
 import Dashboard from "@/app/dashboard/page";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Dashboard",
+  title: "Find charging stations",
+  description: "Find charging stations on a live map and book a slot.",
 };
 
 const Home = () => {

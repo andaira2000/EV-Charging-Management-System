@@ -6,7 +6,7 @@ import Reservations from "@/components/Reservations";
 
 export const metadata: Metadata = {
   title: "Reservations",
-  description: "My Reservations",
+  description: "Your active, upcoming and past reservations.",
 };
 
 export default function Home() {

@@ -6,7 +6,7 @@ import Payments from "@/components/Payments";
 
 export const metadata: Metadata = {
   title: "Payments",
-  description: "My Payments",
+  description: "Your payment history and invoices.",
 };
 
 export default function Home() {

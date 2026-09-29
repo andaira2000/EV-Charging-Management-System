@@ -2,6 +2,9 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 
 export default function SignupWithPassword() {
   const [data, setData] = useState({
@@ -16,6 +19,7 @@ export default function SignupWithPassword() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
@@ -34,6 +38,8 @@ export default function SignupWithPassword() {
       setError("Passwords do not match.");
       return;
     }
+
+    setLoading(true);
 
     try {
       // Update role based on the checkbox
@@ -54,12 +60,15 @@ export default function SignupWithPassword() {
         });
         window.location.href = "/auth/signin";
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Sign up failed. Please try again.");
+        setError(
+          await getErrorMessage(response, "Sign up failed. Please try again."),
+        );
+        setLoading(false);
       }
     } catch (error) {
       setError("Network error. Please try again later.");
       console.error("Network error:", error);
+      setLoading(false);
     }
   };
 
@@ -171,10 +180,13 @@ export default function SignupWithPassword() {
       <div className="mb-4.5">
         <button
           type="submit"
-          className="w-full rounded-lg bg-primary p-4 font-medium text-white hover:bg-opacity-90"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Create an account
+          {loading && <Spinner />}
+          {loading ? "Creating account…" : "Create an account"}
         </button>
+        <SlowServerHint active={loading} />
       </div>
 
       <div className="text-center">

@@ -74,19 +74,6 @@ class CreateCheckoutSessionView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        logger.info(f"Sending availability update to all users")
-
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "reservations",
-            {
-                "type": "availability_update",
-                "data": {},
-            },
-        )
-
-        cleanup_unpaid_reservation.apply_async(args=[reservation.id], countdown=1800)
-
         try:
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
@@ -108,10 +95,30 @@ class CreateCheckoutSessionView(APIView):
                 metadata={"reservation_id": reservation.id},
             )
             logger.info(f"Created Stripe Checkout Session: {session.url}")
-            return Response({"url": session.url}, status=status.HTTP_200_OK)
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error: {e}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Without a checkout session the slot can never be paid, so free it
+            # again instead of blocking the station.
+            reservation.delete()
+            return Response(
+                {"error": "Payment could not be started. Please try again later."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        logger.info(f"Sending availability update to all users")
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "reservations",
+            {
+                "type": "availability_update",
+                "data": {},
+            },
+        )
+
+        cleanup_unpaid_reservation.apply_async(args=[reservation.id], countdown=1800)
+
+        return Response({"url": session.url}, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
