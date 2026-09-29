@@ -5,16 +5,14 @@ import "leaflet/dist/leaflet.css";
 import FilterSidebar from "../Map/FilterSideBar";
 import { IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import ReserveButton from "../Map/ReserveButton";
 import useReservationUpdates from "@/hooks/useReservationUpdates";
 import { fetchStations } from "@/utils";
-import NotifyButton from "../Map/NotifyButton";
+import StationPopup from "../Map/StationPopup";
 import Spinner from "@/components/common/Spinner";
 import SlowServerHint from "@/components/common/SlowServerHint";
 import MapLegend from "../Map/MapLegend";
 import {
   STATION_ICONS,
-  STATION_STATES,
   StationState,
   getStationState,
 } from "../Map/stationStatus";
@@ -164,7 +162,6 @@ export default function Dashboard() {
           {filteredChargingStations.map((station) => {
             const state =
               stationStates[station.station_id] ?? getStationState(station);
-            const { label, color } = STATION_STATES[state];
 
             return (
               <Marker
@@ -173,28 +170,12 @@ export default function Dashboard() {
                 icon={STATION_ICONS[state]}
               >
                 <Popup>
-                  <strong>{station.location}</strong>
-                  <br />
-                  <strong>Power:</strong> {station.power_capacity} kW
-                  <br />
-                  <strong>Status: </strong>
-                  <span style={{ color, fontWeight: 600 }}>{label}</span>
-                  <br />
-                  {state === "available" && (
-                    <ReserveButton
-                      chargingStationId={station.station_id}
-                      startTime={getStartTime()}
-                      endTime={getEndTime()}
-                    />
-                  )}
-                  {state === "in_use" && (
-                    <NotifyButton chargingStationId={station.station_id} />
-                  )}
-                  {(state === "maintenance" || state === "out_of_order") && (
-                    <div style={{ marginTop: "8px" }}>
-                      This station is temporarily unavailable.
-                    </div>
-                  )}
+                  <StationPopup
+                    station={station}
+                    state={state}
+                    startTime={getStartTime()}
+                    endTime={getEndTime()}
+                  />
                 </Popup>
               </Marker>
             );

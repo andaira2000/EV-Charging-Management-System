@@ -59,6 +59,7 @@ const ReserveButton = ({
         variant="contained"
         color="primary"
         type="submit"
+        fullWidth
         style={{ marginTop: "10px" }}
         onClick={handleReserve}
         disabled={loading}

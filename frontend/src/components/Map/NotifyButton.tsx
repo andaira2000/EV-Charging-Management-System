@@ -53,6 +53,7 @@ const NotifyButton = ({ chargingStationId }: NotifyButtonProps) => {
         variant="contained"
         color="primary"
         type="submit"
+        fullWidth
         style={{ marginTop: "10px" }}
         onClick={handleNotify}
         disabled={loading || message?.ok === true}
