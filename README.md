@@ -108,6 +108,7 @@ stripe listen --forward-to http://127.0.0.1:8000/stripe-webhook/
 
 # 6. Frontend (separate terminal)
 cd frontend
+cp .env.example .env.local       # see "Environment variables" below
 npm install
 npm run dev                      # http://localhost:3000
 ```
@@ -156,14 +157,15 @@ OPENCAGE_API_KEY=
 CORS_ALLOW_ALL_ORIGINS=True
 ```
 
-**`frontend/.env`**
+**`frontend/.env.local`** (copy from [`frontend/.env.example`](frontend/.env.example); git-ignored)
 
 ```bash
-NEXT_PUBLIC_IS_LOCAL=true      # false → use the deployed backend
+# true → use the local backend, false → use the deployed one
+NEXT_PUBLIC_IS_LOCAL=true
 NEXT_PUBLIC_LOCAL_SERVER_URL=http://127.0.0.1:8000
-NEXT_PUBLIC_DEPLOYED_SERVER_URL=https://ev-backend-django.click
+NEXT_PUBLIC_DEPLOYED_SERVER_URL=https://ev-charging-management-system.onrender.com
 NEXT_PUBLIC_LOCAL_SERVER_URL_SOCKET=ws://127.0.0.1:8000
-NEXT_PUBLIC_DEPLOYED_SERVER_URL_SOCKET=wss://ev-backend-django.click
+NEXT_PUBLIC_DEPLOYED_SERVER_URL_SOCKET=wss://ev-charging-management-system.onrender.com
 ```
 
 </details>
@@ -274,7 +276,7 @@ EV-Charging-Management-System/
 │       ├── utils.py                  # OpenCage geocoding
 │       └── views/                    # auth, stations, reservations, stripe, payments, notifications, health
 └── frontend/                         # Next.js 14 dashboard (Vercel)
-    ├── .env                          # Local vs deployed backend URLs
+    ├── .env.example                  # Template for .env.local (backend URLs)
     └── src/
         ├── middleware.ts             # Cookie-based route protection
         ├── server/requests.ts        # All API calls
@@ -329,7 +331,7 @@ A **buyer** is an EV driver who reserves and pays for charging slots. A **seller
 Nothing is charged. The reservation stays unpaid, and after 30 minutes the Celery worker deletes it. This only works if the Celery worker and Redis are running.
 
 **The map doesn't update live.**
-The WebSocket uses Django Channels' in-memory channel layer, so live updates only reach clients connected to the same backend process. Make sure the backend runs under Daphne, not `python manage.py runserver`, which doesn't serve WebSockets in this setup, and that the frontend's socket URL in `frontend/.env` matches it.
+The WebSocket uses Django Channels' in-memory channel layer, so live updates only reach clients connected to the same backend process. Make sure the backend runs under Daphne, not `python manage.py runserver`, which doesn't serve WebSockets in this setup, and that the frontend's socket URL in `frontend/.env.local` matches it.
 
 **The map shows no stations.**
 Check that `NEXT_PUBLIC_IS_LOCAL` points the frontend at the backend you are running, that you are signed in (the dashboard route is protected) and that at least one station has been added by a seller.
