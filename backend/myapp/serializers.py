@@ -31,9 +31,10 @@ class ReservationSerializer(serializers.ModelSerializer):
             "charging_station",
             "start_time",
             "end_time",
+            "is_paid",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at", "user"]
+        read_only_fields = ["id", "created_at", "user", "is_paid"]
 
     def get_charging_station(self, obj):
         return obj.charging_station.location
