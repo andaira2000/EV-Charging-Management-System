@@ -1,4 +1,6 @@
 import os
+import dj_database_url
+from datetime import timedelta
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -58,14 +60,11 @@ WSGI_APPLICATION = "myproject.wsgi.application"
 
 # Database
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
-    }
+    "default": dj_database_url.config(
+        env="DATABASE_URL",
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -92,19 +91,17 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-COGNITO_AWS_REGION = os.getenv("COGNITO_AWS_REGION")
-COGNITO_USER_POOL = os.getenv("COGNITO_USER_POOL")
-COGNITO_AUDIENCE = os.getenv("COGNITO_AUDIENCE")
-COGNITO_CLIENT_SECRET = os.getenv("COGNITO_CLIENT_SECRET")
-
-COGNITO_USER_MODEL = "myapp.UserProfile"
 AUTH_USER_MODEL = "myapp.UserProfile"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "django_cognito_jwt.JSONWebTokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
 }
 
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS") == "True"

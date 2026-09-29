@@ -1,16 +1,22 @@
 import uuid
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.contrib.auth.models import UserManager as _UserManager
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
 
 
-# Needed for django_cognito_jwt
-class UserManager(_UserManager):
-    def get_or_create_for_cognito(self, payload):
-        cognito_id = payload["sub"]
-
-        return self.get(user_id=cognito_id)
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("Email is required")
+        extra_fields.setdefault("user_id", str(uuid.uuid4()))
+        user = self.model(email=self.normalize_email(email), **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
 
 class UserProfile(AbstractBaseUser, PermissionsMixin):
@@ -22,11 +28,7 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
         max_length=20,
         choices=[("buyer", "Buyer"), ("seller", "Seller"), ("admin", "Admin")],
     )
-
-    # Needed for django_cognito_jwt
-    last_login = None
-    password = None
-    is_superuser = None
+    
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = UserManager()

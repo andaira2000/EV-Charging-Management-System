@@ -1,7 +1,0 @@
-{
-  "AWSEBDockerrunVersion": "1",
-  "Logging": "/tmp/ev-logs",
-  "Image": {
-    "Update": "false"
-  }
-}

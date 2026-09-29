@@ -3,13 +3,11 @@ djangorestframework
 djangorestframework-simplejwt
 djangorestframework-stubs
 django-cors-headers
-django-cognito-jwt
-boto3
-boto3-stubs
-mysqlclient
+psycopg[binary]
 stripe
 celery[redis]
 django-celery-beat
+dj-database-url
 daphne
 channels
 python-dotenv
