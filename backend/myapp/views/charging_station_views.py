@@ -127,8 +127,23 @@ class UpdateChargingStationView(APIView):
             ChargingStation, station_id=station_id, operator=user_profile
         )
 
+        serializer_data = request.data.copy()
+
+        location = serializer_data.get("location")
+
+        if location and location != charging_station.location:
+            coordinates = get_coordinates_from_address(location)
+            if coordinates:
+                serializer_data["latitude"] = coordinates[0]
+                serializer_data["longitude"] = coordinates[1]
+            else:
+                return Response(
+                    {"error": "Could not fetch coordinates for the given address."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = ChargingStationSerializer(
-            charging_station, data=request.data, partial=True
+            charging_station, data=serializer_data, partial=True
         )
         if serializer.is_valid():
             serializer.save()
