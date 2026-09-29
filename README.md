@@ -163,7 +163,7 @@ NEXT_PUBLIC_IS_LOCAL=true      # false → use the deployed backend
 NEXT_PUBLIC_LOCAL_SERVER_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_DEPLOYED_SERVER_URL=https://ev-backend-django.click
 NEXT_PUBLIC_LOCAL_SERVER_URL_SOCKET=ws://127.0.0.1:8000
-NEXT_PUBLIC_DEPLOYED_SERVER_URL_SOKET=wss://ev-backend-django.click
+NEXT_PUBLIC_DEPLOYED_SERVER_URL_SOCKET=wss://ev-backend-django.click
 ```
 
 </details>
