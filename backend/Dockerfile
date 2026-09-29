@@ -12,10 +12,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    libpq-dev \
-    pkg-config \
     python3-dev \
-    default-libmysqlclient-dev \
     build-essential \
     redis-server \
     && apt-get clean
