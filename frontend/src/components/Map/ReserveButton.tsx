@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Button, CircularProgress } from "@mui/material";
+import Spinner from "@/components/common/Spinner";
 import Cookies from "js-cookie";
 import { Server } from "@/server/requests";
 import { getErrorMessage } from "@/server/errors";
@@ -55,20 +55,17 @@ const ReserveButton = ({
 
   return (
     <>
-      <Button
-        variant="contained"
-        color="primary"
-        type="submit"
-        fullWidth
-        style={{ marginTop: "10px" }}
+      <button
+        type="button"
         onClick={handleReserve}
         disabled={loading}
-        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+        className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
       >
+        {loading && <Spinner className="h-4 w-4" />}
         {loading ? "Opening checkout…" : "Reserve"}
-      </Button>
+      </button>
       {error && (
-        <div style={{ marginTop: "8px", color: "#d32f2f" }}>{error}</div>
+        <div className="mt-2 text-sm text-red">{error}</div>
       )}
     </>
   );

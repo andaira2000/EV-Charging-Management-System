@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Button, CircularProgress } from "@mui/material";
+import Spinner from "@/components/common/Spinner";
 import Cookies from "js-cookie";
 import { Server } from "@/server/requests";
 import { getErrorMessage } from "@/server/errors";
@@ -49,24 +49,18 @@ const NotifyButton = ({ chargingStationId }: NotifyButtonProps) => {
 
   return (
     <>
-      <Button
-        variant="contained"
-        color="primary"
-        type="submit"
-        fullWidth
-        style={{ marginTop: "10px" }}
+      <button
+        type="button"
         onClick={handleNotify}
         disabled={loading || message?.ok === true}
-        startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+        className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {loading ? "Saving…" : "Notify Me"}
-      </Button>
+        {loading && <Spinner className="h-4 w-4" />}
+        {loading ? "Saving…" : "Notify me"}
+      </button>
       {message && (
         <div
-          style={{
-            marginTop: "8px",
-            color: message.ok ? "#2e7d32" : "#d32f2f",
-          }}
+          className={`mt-2 text-sm ${message.ok ? "text-green-dark" : "text-red"}`}
         >
           {message.text}
         </div>

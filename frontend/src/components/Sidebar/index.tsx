@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
 import useLocalStorage from "@/hooks/useLocalStorage";
@@ -193,15 +193,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         >
           <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5 xl:py-10">
             <Link href="/">
-              <Image
-                width={176}
-                height={32}
-                src={"/images/logo/logo-dark.svg"}
-                alt="Logo"
-                priority
-                className="dark:invert"
-                style={{ width: "auto", height: "auto" }}
-              />
+              <Logo size={40} />
             </Link>
 
             <button

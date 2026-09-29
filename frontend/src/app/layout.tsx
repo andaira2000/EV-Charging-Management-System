@@ -1,9 +1,18 @@
-"use client";
-import "jsvectormap/dist/css/jsvectormap.css";
-import "flatpickr/dist/flatpickr.min.css";
+import type { Metadata } from "next";
 import "@/css/satoshi.css";
 import "@/css/style.css";
-import React, { useEffect, useState } from "react";
+import React from "react";
+
+// Pages set their own title, e.g. "Payments", which becomes
+// "Payments | EV Charging".
+export const metadata: Metadata = {
+  title: {
+    template: "%s | EV Charging",
+    default: "EV Charging",
+  },
+  description:
+    "Find EV charging stations on a live map, book a time slot and pay online.",
+};
 
 export default function RootLayout({
   children,

@@ -210,17 +210,29 @@ const ManageStations: React.FC = () => {
 
   return (
     <>
-      <div className="mx-auto mb-6 flex max-w-7xl flex-wrap items-center justify-between gap-4">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4">
         <div className="text-sm text-dark-5 dark:text-dark-6">
           {stations.length > 0 &&
             `${stations.length} station${stations.length === 1 ? "" : "s"}`}
         </div>
         {!open && (
           <button
-            className="rounded-lg bg-primary px-5 py-3 font-medium text-white hover:bg-opacity-90"
+            className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-2.5 font-semibold text-white"
             onClick={handleOpen}
           >
-            Add Charging Station
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Add station
           </button>
         )}
       </div>
@@ -228,7 +240,7 @@ const ManageStations: React.FC = () => {
       {open && (
         <form
           onSubmit={handleSubmit}
-          className="mx-auto mb-6 max-w-7xl rounded-lg bg-white p-6 shadow-md dark:bg-dark-2"
+          className="mx-auto w-full max-w-7xl rounded-lg bg-white p-6 shadow-md dark:bg-dark-2"
         >
           <div className="mb-5 text-lg font-bold text-dark dark:text-white">
             {isEditMode ? "Edit charging station" : "New charging station"}
@@ -376,7 +388,7 @@ const ManageStations: React.FC = () => {
       )}
 
       {error && !open && (
-        <div className="mx-auto mb-4 max-w-7xl font-medium text-red-500">
+        <div className="mx-auto w-full max-w-7xl font-medium text-red-500">
           {error}
         </div>
       )}
@@ -463,7 +475,7 @@ const ManageStations: React.FC = () => {
                 You haven&apos;t added any stations yet.
               </p>
               <p className="mt-1 text-sm">
-                Use <strong>Add Charging Station</strong> above to list your
+                Use <strong>Add station</strong> above to list your
                 first one.
               </p>
             </TableMessageRow>

@@ -4,8 +4,8 @@ import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 
 export const metadata: Metadata = {
-  title: "Find Charging Stations",
-  description: "Find charging stations",
+  title: "Find charging stations",
+  description: "Find charging stations on a live map and book a slot.",
 };
 
 export default function Home() {

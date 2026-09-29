@@ -10,15 +10,9 @@
     "stripe:listen": "stripe listen --forward-to http://localhost:3000"
   },
   "dependencies": {
-    "@emotion/react": "^11.13.5",
-    "@emotion/styled": "^11.13.5",
-    "@mui/icons-material": "^6.1.10",
-    "@mui/material": "^6.1.10",
-    "flatpickr": "^4.6.13",
     "js-cookie": "^3.0.1",
     "jspdf": "2.5.2",
     "jspdf-autotable": "^3.5.14",
-    "jsvectormap": "^1.5.3",
     "leaflet": "^1.9.4",
     "next": "^14.1.4",
     "react": "^18.3.1",
@@ -31,7 +25,6 @@
     "@types/node": "^20.17.9",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18",
-    "@types/react-table": "^7.7.19",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",

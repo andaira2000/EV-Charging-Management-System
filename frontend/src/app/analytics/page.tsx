@@ -5,8 +5,8 @@ import { Metadata } from "next";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 
 export const metadata: Metadata = {
-  title: "Most Visited Charging Station",
-  description: "Most Visited Charging Station",
+  title: "Analytics",
+  description: "The most visited charging station.",
 };
 
 const TablesPage = () => {
