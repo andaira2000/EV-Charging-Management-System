@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import FilterSidebar from "../Map/FilterSideBar";
 import { IconButton } from "@mui/material";
@@ -12,6 +11,13 @@ import { fetchStations } from "@/utils";
 import NotifyButton from "../Map/NotifyButton";
 import Spinner from "@/components/common/Spinner";
 import SlowServerHint from "@/components/common/SlowServerHint";
+import MapLegend from "../Map/MapLegend";
+import {
+  STATION_ICONS,
+  STATION_STATES,
+  StationState,
+  getStationState,
+} from "../Map/stationStatus";
 
 interface ChargingStationData {
   station_id: number;
@@ -26,32 +32,24 @@ interface ChargingStationData {
   connector_types: string;
 }
 
-const customIcon = new L.Icon({
-  iconUrl: "/images/icon/marker-icon.png",
-  shadowUrl: "/images/icon/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const isStationAvailableNow = (station: ChargingStationData) => {
+const checkAvailability = (
+  stations: ChargingStationData[],
+  setStationStates: (states: Record<number, StationState>) => void,
+) => {
   const now = new Date();
-  const hasActiveReservation = station.reservations.some(
-    (reservation) =>
-      new Date(reservation.start_time) <= now &&
-      new Date(reservation.end_time) >= now,
-  );
-  return station.availability_status === "available" && !hasActiveReservation;
+  const updatedStates: Record<number, StationState> = {};
+  stations.forEach((station) => {
+    updatedStates[station.station_id] = getStationState(station, now);
+  });
+  setStationStates(updatedStates);
 };
 
-const checkAvailability = (stations: any, setAvailability: Function) => {
-  const updatedAvailability: Record<number, boolean> = {};
-  stations.forEach((station: any) => {
-    updatedAvailability[station.station_id] = isStationAvailableNow(station);
-  });
-  console.log("Updated availability: ", updatedAvailability);
-  setAvailability(updatedAvailability);
+// Filter values from FilterSideBar mapped to station states.
+const STATUS_FILTERS: Record<string, StationState> = {
+  Available: "available",
+  "In Use": "in_use",
+  Maintenance: "maintenance",
+  "Out of Order": "out_of_order",
 };
 
 export default function Dashboard() {
@@ -63,7 +61,7 @@ export default function Dashboard() {
   >([]);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [filters, setFilters] = useState({
-    minPowerKw: 50,
+    minPowerKw: 0,
     distance: 10,
     status: "All",
   });
@@ -71,7 +69,9 @@ export default function Dashboard() {
     [number, number] | null
   >(null);
 
-  const [availability, setAvailability] = useState<Record<number, boolean>>({});
+  const [stationStates, setStationStates] = useState<
+    Record<number, StationState>
+  >({});
   const [loading, setLoading] = useState(true);
 
   useReservationUpdates(setChargingStations);
@@ -85,15 +85,14 @@ export default function Dashboard() {
 
         const isStatusValid =
           status === "All" ||
-          (status === "Available" && availability[station.station_id]) ||
-          (status === "In Use" && !availability[station.station_id]);
+          stationStates[station.station_id] === STATUS_FILTERS[status];
 
         return isPowerValid && isStatusValid;
       },
     );
 
     setFilteredChargingStations(filteredStations);
-  }, [filters, chargingStations]);
+  }, [filters, chargingStations, stationStates]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -122,10 +121,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    checkAvailability(chargingStations, setAvailability);
+    checkAvailability(chargingStations, setStationStates);
 
     const intervalId = setInterval(() => {
-      checkAvailability(chargingStations, setAvailability);
+      checkAvailability(chargingStations, setStationStates);
     }, 2000);
 
     return () => clearInterval(intervalId);
@@ -155,45 +154,54 @@ export default function Dashboard() {
         filters={filters}
         setFilters={setFilters}
       />
-      <MapContainer
-        center={currentLocation || [51.509865, -0.118092]}
-        zoom={13}
-        style={{ height: "500px", width: "100%" }}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {filteredChargingStations.map((station) => (
-          <Marker
-            key={station.station_id}
-            position={[station.latitude, station.longitude]}
-            icon={customIcon}
-          >
-            <Popup>
-              <strong>{station.location}</strong>
-              <br />
-              <strong>Power:</strong> {station.power_capacity} kW
-              <br />
-              <strong>Status: </strong>
-              <span
-                style={{
-                  color: availability[station.station_id] ? "green" : "red",
-                }}
+      <div style={{ position: "relative" }}>
+        <MapContainer
+          center={currentLocation || [51.509865, -0.118092]}
+          zoom={13}
+          style={{ height: "500px", width: "100%" }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {filteredChargingStations.map((station) => {
+            const state =
+              stationStates[station.station_id] ?? getStationState(station);
+            const { label, color } = STATION_STATES[state];
+
+            return (
+              <Marker
+                key={station.station_id}
+                position={[station.latitude, station.longitude]}
+                icon={STATION_ICONS[state]}
               >
-                {availability[station.station_id] ? "Available" : "In Use"}
-              </span>
-              <br />
-              {availability[station.station_id] ? (
-                <ReserveButton
-                  chargingStationId={station.station_id}
-                  startTime={getStartTime()}
-                  endTime={getEndTime()}
-                />
-              ) : (
-                <NotifyButton chargingStationId={station.station_id} />
-              )}
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+                <Popup>
+                  <strong>{station.location}</strong>
+                  <br />
+                  <strong>Power:</strong> {station.power_capacity} kW
+                  <br />
+                  <strong>Status: </strong>
+                  <span style={{ color, fontWeight: 600 }}>{label}</span>
+                  <br />
+                  {state === "available" && (
+                    <ReserveButton
+                      chargingStationId={station.station_id}
+                      startTime={getStartTime()}
+                      endTime={getEndTime()}
+                    />
+                  )}
+                  {state === "in_use" && (
+                    <NotifyButton chargingStationId={station.station_id} />
+                  )}
+                  {(state === "maintenance" || state === "out_of_order") && (
+                    <div style={{ marginTop: "8px" }}>
+                      This station is temporarily unavailable.
+                    </div>
+                  )}
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+        <MapLegend />
+      </div>
       {loading && (
         <div className="absolute inset-x-0 top-12 z-[1000] mx-auto flex w-fit flex-col items-center rounded-lg bg-white px-5 py-3 shadow-lg dark:bg-dark-2">
           <div className="flex items-center gap-2 font-medium text-dark dark:text-white">

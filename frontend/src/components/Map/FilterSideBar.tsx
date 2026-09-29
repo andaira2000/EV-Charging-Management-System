@@ -101,6 +101,8 @@ export default function FilterSidebar({
               <MenuItem value="All">All</MenuItem>
               <MenuItem value="Available">Available</MenuItem>
               <MenuItem value="In Use">In Use</MenuItem>
+              <MenuItem value="Maintenance">Maintenance</MenuItem>
+              <MenuItem value="Out of Order">Out of Order</MenuItem>
             </Select>
           </FormControl>
         </Box>
