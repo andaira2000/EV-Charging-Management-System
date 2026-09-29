@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js">
   <img src="https://img.shields.io/badge/Django_REST-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django REST Framework">
-  <img src="https://img.shields.io/badge/AWS_Cognito-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" alt="AWS Cognito">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe">
 </p>
 
@@ -54,7 +54,7 @@ cd EV-Charging-Management-System
 - **Double-book a station.** The checkout request is atomic and checks for overlapping reservations before it creates one.
 - **Charge you twice.** The Stripe webhook locks the reservation and ignores it if it is already paid.
 - **Let anyone edit anyone's station.** Only a `seller` can add, update or delete stations.
-- **Store passwords or card numbers.** Authentication is delegated to AWS Cognito, and payment to Stripe.
+- **Store plain-text passwords or card numbers.** Passwords are kept only as salted hashes (Django's PBKDF2), and card details never leave Stripe.
 
 ## Features
 
@@ -63,7 +63,7 @@ cd EV-Charging-Management-System
 | **Live Station Map**       | React-Leaflet map of all stations with filters, details, and **Reserve** / **Notify me** buttons on each marker                               |
 | **Real-Time Availability** | Django Channels WebSocket (`/ws/reservations/`) pushes an update to every open map when a reservation is created or cancelled                 |
 | **Role-Based Accounts**    | `buyer` (driver) or `seller` (operator), chosen at sign-up. Sellers get the station management pages                                           |
-| **Cognito Authentication** | Sign up and sign in against an AWS Cognito user pool. JWTs are kept in cookies and validated by Next.js middleware on protected routes        |
+| **JWT Authentication**     | Sign up and sign in against the Django API. It issues signed JWTs (simplejwt, valid for 1 day), kept in cookies and validated by Next.js middleware on protected routes |
 | **Station Management**     | Operators create, update and delete stations: location, speed (fast/slow), power (kW), price per kWh, connector (Type 1, Type 2, CCS, CHAdeMO) |
 | **Stripe Payments**        | A checkout session in GBP priced from the booked energy. A signed webhook (`checkout.session.completed`) marks the reservation as paid          |
 
@@ -78,14 +78,14 @@ cd EV-Charging-Management-System
 | **Unpaid Booking Cleanup**  | `cleanup_unpaid_reservation` is scheduled with Celery + Redis 30 minutes after each booking             |
 | **Analytics**               | Most visited station, by number of reservations                                                        |
 | **Auto Geocoding**          | Station addresses are turned into latitude/longitude through the OpenCage Geocoding API                  |
-| **Health Check**            | `GET /health/` returns `{"status": "ok"}` for the AWS load balancer                                     |
-| **Typed Backend**           | `mypy` config plus `djangorestframework-stubs` and `boto3-stubs` for type-checked Django code           |
+| **Health Check**            | `GET /health/` returns `{"status": "ok"}`, used as Render's health check                                |
+| **Typed Backend**           | `mypy` config plus `djangorestframework-stubs` for type-checked Django code                             |
 
 </details>
 
 ## Quick Start
 
-You need **Python 3.10+**, **Node.js 18+**, **MySQL**, **Redis**, an **AWS Cognito** user pool, a **Stripe** account (test mode is fine), an **OpenCage** API key and an **SMTP** account for emails.
+You need **Python 3.10+**, **Node.js 18+**, a **PostgreSQL** database (a free [Neon](https://neon.tech) project works), **Redis**, a **Stripe** account (test mode is fine), an **OpenCage** API key and an **SMTP** account for emails.
 
 ```bash
 # 1. Backend
@@ -119,20 +119,12 @@ npm run dev                      # http://localhost:3000
 **`backend/.env`**
 
 ```bash
+# Also signs the login JWTs. Generate one with:
+# python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 SECRET_KEY=
 
-# MySQL
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
-DB_HOST=
-DB_PORT=3306
-
-# AWS Cognito
-COGNITO_AWS_REGION=
-COGNITO_USER_POOL=
-COGNITO_AUDIENCE=              # app client ID
-COGNITO_CLIENT_SECRET=
+# PostgreSQL (e.g. Neon's direct, non-pooled connection string)
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 # Stripe
 STRIPE_SECRET_KEY=
@@ -146,7 +138,7 @@ CELERY_BROKER_URL=redis://127.0.0.1:6379/1
 EMAIL_HOST=
 EMAIL_HOST_USER=
 EMAIL_HOST_PASSWORD=
-EMAIL_PORT=587
+EMAIL_PORT=587                 # required, even if you don't send emails
 DEFAULT_FROM_EMAIL=
 SENDGRID_API_KEY=
 
@@ -177,7 +169,7 @@ Driver picks a station + time slot on the map
         │
         ▼
 ┌──────────────────────────┐
-│  POST /create-checkout-  │  Cognito JWT → user profile
+│  POST /create-checkout-  │  JWT → user profile
 │  session/                │  Overlap check (atomic)
 └────────────┬─────────────┘
              │
@@ -206,29 +198,31 @@ Reservation  WebSocket push      Celery task scheduled
             └──────────┬───────────┘
                        │ HTTPS + WSS
             ┌──────────▼───────────┐
-            │  AWS ECS (Fargate)   │  Docker: Daphne + Celery + Redis
-            │  ev-backend-django   │  env file loaded from S3
+            │  Render (Docker)     │  Daphne + Celery + Redis
+            │  ev-charging-...com  │  in one container
             └──────────┬───────────┘
                        │
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
-   AWS RDS (MySQL)  AWS Cognito     Stripe
+  Neon (PostgreSQL)  Stripe        OpenCage
 ```
 
-- **Frontend:** deployed on Vercel from the `frontend/` directory.
-- **Backend:** every push to `main` that touches `backend/**` runs [`.github/workflows/aws.yml`](.github/workflows/aws.yml). It builds `backend/Dockerfile`, pushes the image to Amazon ECR and deploys it to the ECS service with [`backend/task-definition.json`](backend/task-definition.json).
-- **Container:** [`backend/start.sh`](backend/start.sh) starts Redis, a Celery worker and Daphne on port `8000` in one container. Environment variables come from a `.env` file stored in S3.
-- **Secrets:** the workflow needs `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as GitHub repository secrets.
+- **Frontend:** deployed on Vercel from the `frontend/` directory. Every push to `main` that touches `frontend/` builds a new production version. The `NEXT_PUBLIC_*` variables are set in Vercel's project settings and baked in at build time, so changing them needs a redeploy.
+- **Backend:** a Render web service built from [`backend/Dockerfile`](backend/Dockerfile), with `backend` as its root directory. Every push to `main` that touches `backend/` deploys automatically. Render calls `GET /health/` to check that a new version is up before switching traffic to it.
+- **Container:** [`backend/start.sh`](backend/start.sh) runs `migrate`, then starts Redis, a Celery worker and Daphne on Render's `$PORT` (`8000` locally) in one container.
+- **Configuration:** the backend's environment variables (see [Environment variables](#quick-start)) are set in Render's dashboard, not in a file.
+- **Database:** PostgreSQL on Neon, in the same region as the Render service (Frankfurt).
+- **Free plan:** the Render instance sleeps after 15 minutes without traffic, so the first request after that can take up to a minute.
 
 ## API
 
-All endpoints except health, sign-up, login and the Stripe webhook require `Authorization: Bearer <Cognito JWT>`.
+All endpoints except health, sign-up, login and the Stripe webhook require `Authorization: Bearer <access token>`, using the `access` token returned by `/login/`.
 
 ```
 GET    /health/                                   → Health check
 
-POST   /signup/                                   → Register via Cognito + create user profile
-POST   /login/                                    → Authenticate, returns Cognito tokens + role
+POST   /signup/                                   → Create a user (password stored hashed)
+POST   /login/                                    → Authenticate, returns a JWT access token + profile
 POST   /validate-token/                           → Check a token (used by Next.js middleware)
 
 POST   /charging-stations/add/                    → Add a station (seller)
@@ -257,11 +251,9 @@ WS     /ws/reservations/                          → Live availability updates
 
 ```
 EV-Charging-Management-System/
-├── .github/workflows/aws.yml         # Build + deploy backend to AWS ECS
-├── backend/                          # Django REST API + Channels
+├── backend/                          # Django REST API + Channels (Render)
 │   ├── Dockerfile
-│   ├── start.sh                      # Redis + Celery + Daphne
-│   ├── task-definition.json          # ECS task definition
+│   ├── start.sh                      # migrate, then Redis + Celery + Daphne
 │   ├── requirements.txt
 │   ├── myproject/
 │   │   ├── settings.py               # Reads config from .env
@@ -298,11 +290,11 @@ EV-Charging-Management-System/
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-092E20?style=flat&logo=django&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat&logo=mysql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat&logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-37814A?style=flat&logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat&logo=amazonaws&logoColor=white)
+![Render](https://img.shields.io/badge/Render-000?style=flat&logo=render&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000?style=flat&logo=vercel&logoColor=white)
 ![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=flat&logo=stripe&logoColor=white)
 ![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=flat&logo=leaflet&logoColor=white)
@@ -311,13 +303,13 @@ EV-Charging-Management-System/
 - **Maps**: Leaflet + React-Leaflet
 - **Backend**: Django + Django REST Framework, served by Daphne
 - **Real-time**: Django Channels (WebSockets)
-- **Auth**: AWS Cognito (`django-cognito-jwt`, `boto3`)
-- **Database**: MySQL on AWS RDS
+- **Auth**: Django password hashing + JWTs (`djangorestframework-simplejwt`)
+- **Database**: PostgreSQL on Neon (`psycopg`, `dj-database-url`)
 - **Background jobs**: Celery + Redis
 - **Payments**: Stripe Checkout + webhooks
 - **Email**: Django `send_mail` over SMTP (SendGrid)
 - **Geocoding**: OpenCage Geocoding API
-- **Infrastructure**: Docker, Amazon ECR + ECS, GitHub Actions
+- **Infrastructure**: Docker on Render (backend), Vercel (frontend)
 
 ## FAQ
 
@@ -328,7 +320,7 @@ A **buyer** is an EV driver who reserves and pays for charging slots. A **seller
 `power_capacity (kW) × duration (hours) × price_per_kwh`, charged in GBP through Stripe. A 2-hour slot on a 22 kW station at £0.50/kWh costs 22 × 2 × 0.50 = **£22.00**.
 
 **What happens if I close the Stripe tab without paying?**
-Nothing is charged. The reservation stays unpaid, and after 30 minutes the Celery worker deletes it. This only works if the Celery worker and Redis are running.
+Nothing is charged. The reservation stays unpaid, and after 30 minutes the Celery worker deletes it. This only works if the Celery worker and Redis are running. On Render's free plan, Redis runs inside the container, so if the instance sleeps or restarts during those 30 minutes, the cleanup task is lost and the reservation stays until it is removed by hand.
 
 **The map doesn't update live.**
 The WebSocket uses Django Channels' in-memory channel layer, so live updates only reach clients connected to the same backend process. Make sure the backend runs under Daphne, not `python manage.py runserver`, which doesn't serve WebSockets in this setup, and that the frontend's socket URL in `frontend/.env.local` matches it.
