@@ -1,6 +1,5 @@
 import Link from "next/link";
 import DarkModeSwitcher from "./DarkModeSwitcher";
-import DropdownNotification from "./DropdownNotification";
 import DropdownUser from "./DropdownUser";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -82,10 +81,6 @@ const Header = ({
             {/* <!-- Dark Mode Toggle --> */}
             <DarkModeSwitcher />
             {/* <!-- Dark Mode Toggle --> */}
-
-            {/* <!-- Notification Menu Area --> */}
-            {showUserSpecificContent && <DropdownNotification />}
-            {/* <!-- Notification Menu Area --> */}
           </ul>
 
           {/* <!-- User Area --> */}
