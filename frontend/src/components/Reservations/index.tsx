@@ -6,6 +6,7 @@ import { Server } from "@/server/requests";
 import { getErrorMessage } from "@/server/errors";
 import Spinner from "@/components/common/Spinner";
 import SlowServerHint from "@/components/common/SlowServerHint";
+import Tabs from "@/components/common/Tabs";
 import {
   Badge,
   LocationCell,
@@ -147,29 +148,17 @@ const Reservations: React.FC = () => {
   return (
     <div className="w-full p-6">
       {/* Tabs */}
-      <ul className="mx-auto mb-6 flex w-full max-w-7xl items-center justify-center gap-4">
-        {["active", "upcoming", "past"].map((tab, index) => (
-          <React.Fragment key={tab}>
-            <li className="flex-1 text-center">
-              <button
-                onClick={() => setActiveTab(tab as any)}
-                className={`group relative w-full rounded-[7px] px-3.5 py-3 font-medium duration-300 ease-in-out ${
-                  activeTab === tab
-                    ? "bg-primary/[.07] text-primary dark:bg-white/10 dark:text-white"
-                    : "text-dark-4 hover:bg-gray-100 hover:shadow-md dark:text-gray-5 dark:hover:bg-white/10 dark:hover:text-white"
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            </li>
-            {index < 2 && (
-              <li className="hidden text-gray-400 dark:text-gray-600 md:block">
-                |
-              </li>
-            )}
-          </React.Fragment>
-        ))}
-      </ul>
+      <div className="mb-6">
+        <Tabs
+          tabs={[
+            { value: "active", label: "Active" },
+            { value: "upcoming", label: "Upcoming" },
+            { value: "past", label: "Past" },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
 
       {error && (
         <p className="mx-auto mb-4 max-w-7xl font-medium text-red-500">
