@@ -1,7 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
+import Link from "next/link";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 
 const Reservations: React.FC = () => {
   const [reservations, setReservations] = useState<any[]>([]);
@@ -14,17 +18,27 @@ const Reservations: React.FC = () => {
   );
 
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     const fetchReservations = async () => {
       const token = Cookies.get("accessToken") ?? "";
       try {
         const response = await Server.getUserReservations(token);
-        const data = await response.json();
-        console.log("Reservations", data);
-        setReservations(data);
+        if (!response.ok) {
+          setError(
+            await getErrorMessage(response, "Could not load your reservations."),
+          );
+          return;
+        }
+        setReservations(await response.json());
       } catch (error) {
         console.error("Error fetching reservations:", error);
+        setError("Network error. Please try again later.");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -91,18 +105,38 @@ const Reservations: React.FC = () => {
     if (!reservationToCancel) return;
 
     const token = Cookies.get("accessToken") ?? "";
+    setError("");
+    setCancelling(true);
     try {
-      await Server.cancelReservation(token, reservationToCancel);
-      setReservations((prev) =>
-        prev.filter((reservation) => reservation.id !== reservationToCancel),
+      const response = await Server.cancelReservation(
+        token,
+        reservationToCancel,
       );
-      alert("Reservation canceled successfully.");
+      if (response.ok) {
+        setReservations((prev) =>
+          prev.filter((reservation) => reservation.id !== reservationToCancel),
+        );
+      } else {
+        setError(
+          await getErrorMessage(
+            response,
+            "Failed to cancel the reservation. Please try again.",
+          ),
+        );
+      }
     } catch (error) {
       console.error("Error canceling reservation:", error);
-      alert("Failed to cancel reservation. Please try again.");
+      setError("Network error. Please try again later.");
     } finally {
+      setCancelling(false);
       closeCancelPopup();
     }
+  };
+
+  const emptyMessages = {
+    active: "You're not charging anywhere right now.",
+    upcoming: "You have no upcoming reservations.",
+    past: "You have no past reservations yet.",
   };
 
   return (
@@ -131,6 +165,12 @@ const Reservations: React.FC = () => {
           </React.Fragment>
         ))}
       </ul>
+
+      {error && (
+        <p className="mx-auto mb-4 max-w-7xl font-medium text-red-500">
+          {error}
+        </p>
+      )}
 
       {/* Table */}
       <div className="mx-auto w-full max-w-7xl overflow-x-auto bg-white shadow-md dark:bg-dark-2">
@@ -204,9 +244,29 @@ const Reservations: React.FC = () => {
                   colSpan={
                     activeTab === "active" || activeTab === "upcoming" ? 4 : 3
                   }
-                  className="px-6 py-4 text-center"
+                  className="px-6 py-8 text-center"
                 >
-                  No reservations found
+                  {loading ? (
+                    <>
+                      <div className="flex items-center justify-center gap-2">
+                        <Spinner />
+                        Loading your reservations…
+                      </div>
+                      <SlowServerHint active={loading} />
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-dark dark:text-white">
+                        {emptyMessages[activeTab]}
+                      </p>
+                      <p className="mt-1 text-sm">
+                        <Link href="/dashboard" className="text-primary">
+                          Find a charging station on the map
+                        </Link>{" "}
+                        to book a slot.
+                      </p>
+                    </>
+                  )}
                 </td>
               </tr>
             )}
@@ -234,9 +294,11 @@ const Reservations: React.FC = () => {
               </button>
               <button
                 onClick={handleCancelReservation}
-                className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                disabled={cancelling}
+                className="flex items-center gap-2 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Yes, Cancel
+                {cancelling && <Spinner className="h-4 w-4" />}
+                {cancelling ? "Cancelling…" : "Yes, Cancel"}
               </button>
             </div>
           </div>

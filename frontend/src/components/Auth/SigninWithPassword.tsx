@@ -3,6 +3,9 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 
 interface SignInData {
   email: string;
@@ -16,6 +19,7 @@ const SigninWithPassword: React.FC = () => {
   });
 
   const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,6 +32,7 @@ const SigninWithPassword: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const response = await Server.login(data);
@@ -44,14 +49,18 @@ const SigninWithPassword: React.FC = () => {
 
         console.log("Sign in successful");
 
+        // Keep the loading state until the dashboard has loaded.
         window.location.href = "/dashboard";
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Sign in failed. Please try again.");
+        setError(
+          await getErrorMessage(response, "Sign in failed. Please try again."),
+        );
+        setLoading(false);
       }
     } catch (error) {
       setError("Network error. Please try again later.");
       console.error("Network error:", error);
+      setLoading(false);
     }
   };
 
@@ -95,10 +104,13 @@ const SigninWithPassword: React.FC = () => {
       <div className="mb-4.5">
         <button
           type="submit"
-          className="w-full rounded-lg bg-primary p-4 font-medium text-white hover:bg-opacity-90"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-4 font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Sign In
+          {loading && <Spinner />}
+          {loading ? "Signing in…" : "Sign In"}
         </button>
+        <SlowServerHint active={loading} />
       </div>
 
       <div className="text-center">

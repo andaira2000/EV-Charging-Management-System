@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 
 interface ChargingStationData {
   station_id: number;
@@ -28,6 +31,8 @@ const ManageStations: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [stations, setStations] = useState<ChargingStationData[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [loadingStations, setLoadingStations] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const token: string = Cookies.get("accessToken") ?? "";
 
@@ -61,10 +66,17 @@ const ManageStations: React.FC = () => {
       return;
     }
 
+    setSaving(true);
+
     try {
       let response;
       if (isEditMode) {
-        response = await Server.updateChargingStation(token, data.station_id);
+        const { station_id, ...changes } = data;
+        response = await Server.updateChargingStation(
+          token,
+          station_id,
+          changes,
+        );
       } else {
         response = await Server.addChargingStation(token, data);
       }
@@ -88,17 +100,20 @@ const ManageStations: React.FC = () => {
           connector_types: "",
         });
       } else {
-        const errorData = await response.json();
         setError(
-          errorData.message ||
-            (isEditMode
+          await getErrorMessage(
+            response,
+            isEditMode
               ? "Failed to update charging station. Please try again."
-              : "Failed to add charging station. Please try again."),
+              : "Failed to add charging station. Please try again.",
+          ),
         );
       }
     } catch (error) {
       setError("Network error. Please try again later.");
       console.error("Network error:", error);
+    } finally {
+      setSaving(false);
     }
   };
   const handleEdit = (station: ChargingStationData) => {
@@ -131,6 +146,8 @@ const ManageStations: React.FC = () => {
     } catch (error) {
       console.error("Error fetching charging stations:", error);
       setError("Error fetching charging stations.");
+    } finally {
+      setLoadingStations(false);
     }
   };
   useEffect(() => {
@@ -155,12 +172,12 @@ const ManageStations: React.FC = () => {
         setStations((prevStations) =>
           prevStations.filter((station) => station.station_id !== stationId),
         );
-        alert("Charging station deleted successfully.");
       } else {
-        const errorData = await response.json();
         setError(
-          errorData.message ||
+          await getErrorMessage(
+            response,
             "Failed to delete charging station. Please try again.",
+          ),
         );
       }
     } catch (error) {
@@ -294,10 +311,17 @@ const ManageStations: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-primary p-4 text-center font-medium text-white hover:bg-opacity-90"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-4 text-center font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isEditMode ? "Update Charging Station" : "Add Charging Station"}
+            {saving && <Spinner />}
+            {saving
+              ? "Saving…"
+              : isEditMode
+                ? "Update Charging Station"
+                : "Add Charging Station"}
           </button>
+          <SlowServerHint active={saving} />
           <button
             type="button"
             onClick={handleClose}
@@ -341,27 +365,43 @@ const ManageStations: React.FC = () => {
                   <td className="px-6 py-4">£{station.price_per_kwh}</td>
                   <td className="px-6 py-4">{station.connector_types}</td>
                   <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleDelete(station.station_id)}
-                      className="rounded-lg bg-red-500 p-2 font-medium text-white hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                    <td>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(station)}
                         className="rounded-lg bg-blue-500 p-2 font-medium text-white hover:bg-blue-600"
                       >
                         Update
                       </button>
-                    </td>
+                      <button
+                        onClick={() => handleDelete(station.station_id)}
+                        className="rounded-lg bg-red-500 p-2 font-medium text-white hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
+            ) : loadingStations ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Spinner />
+                    Loading your stations…
+                  </div>
+                  <SlowServerHint active={loadingStations} />
+                </td>
+              </tr>
             ) : (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center">
-                  No stations found
+                <td colSpan={7} className="px-6 py-8 text-center">
+                  <p className="font-medium text-dark dark:text-white">
+                    You haven&apos;t added any stations yet.
+                  </p>
+                  <p className="mt-1 text-sm">
+                    Use <strong>Add Charging Station</strong> above to list
+                    your first one.
+                  </p>
                 </td>
               </tr>
             )}

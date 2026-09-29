@@ -158,13 +158,18 @@ async function getUserReservations(token: string) {
   });
 }
 
-async function updateChargingStation(token: string, stationId: number) {
+async function updateChargingStation(
+  token: string,
+  stationId: number,
+  data: object,
+) {
   return fetch(`${SERVER_URL}/charging-stations/${stationId}/update/`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify(data),
   });
 }
 

@@ -1,23 +1,36 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
+import Link from "next/link";
 import { Server } from "@/server/requests";
+import { getErrorMessage } from "@/server/errors";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 const Payments: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchPayments = async () => {
       const token = Cookies.get("accessToken") ?? "";
       try {
         const response = await Server.getUserPayments(token);
-        const data = await response.json();
-        console.log("Payments", data);
-        setPayments(data);
+        if (!response.ok) {
+          setError(
+            await getErrorMessage(response, "Could not load your payments."),
+          );
+          return;
+        }
+        setPayments(await response.json());
       } catch (error) {
         console.error("Error fetching payments:", error);
+        setError("Network error. Please try again later.");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -67,11 +80,18 @@ const Payments: React.FC = () => {
       <div className="mb-6 text-right">
         <button
           onClick={generateInvoice}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          disabled={payments.length === 0}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Generate Invoice
         </button>
       </div>
+
+      {error && (
+        <p className="mx-auto mb-4 max-w-7xl font-medium text-red-500">
+          {error}
+        </p>
+      )}
 
       {/* Table */}
       <div className="mx-auto w-full max-w-7xl overflow-x-auto bg-white shadow-md dark:bg-dark-2">
@@ -109,8 +129,29 @@ const Payments: React.FC = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center">
-                  No payments found
+                <td colSpan={6} className="px-6 py-8 text-center">
+                  {loading ? (
+                    <>
+                      <div className="flex items-center justify-center gap-2">
+                        <Spinner />
+                        Loading your payments…
+                      </div>
+                      <SlowServerHint active={loading} />
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-dark dark:text-white">
+                        No payments yet.
+                      </p>
+                      <p className="mt-1 text-sm">
+                        Payments appear here after you{" "}
+                        <Link href="/dashboard" className="text-primary">
+                          reserve and pay for a charging slot
+                        </Link>
+                        .
+                      </p>
+                    </>
+                  )}
                 </td>
               </tr>
             )}

@@ -10,6 +10,8 @@ import ReserveButton from "../Map/ReserveButton";
 import useReservationUpdates from "@/hooks/useReservationUpdates";
 import { fetchStations } from "@/utils";
 import NotifyButton from "../Map/NotifyButton";
+import Spinner from "@/components/common/Spinner";
+import SlowServerHint from "@/components/common/SlowServerHint";
 
 interface ChargingStationData {
   station_id: number;
@@ -70,6 +72,7 @@ export default function Dashboard() {
   >(null);
 
   const [availability, setAvailability] = useState<Record<number, boolean>>({});
+  const [loading, setLoading] = useState(true);
 
   useReservationUpdates(setChargingStations);
 
@@ -110,6 +113,7 @@ export default function Dashboard() {
     fetchStations()
       .then((stations) => {
         setChargingStations(stations);
+        setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching stations:", error);
@@ -140,34 +144,8 @@ export default function Dashboard() {
     return date.toISOString().replace("Z", "+00:00");
   };
 
-  const handleNotify = async (stationId: number) => {
-    try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/notifications/request",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-          body: JSON.stringify({
-            charging_station_id: stationId,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        alert("You will be notified when the station becomes available.");
-      } else {
-        alert("Failed to request notification.");
-      }
-    } catch (error) {
-      console.error("Error requesting notification:", error);
-    }
-  };
-
   return (
-    <div style={{ height: "100vh" }}>
+    <div style={{ height: "100vh", position: "relative" }}>
       <IconButton onClick={() => setSidebarOpen(true)}>
         <MenuIcon />
       </IconButton>
@@ -216,6 +194,15 @@ export default function Dashboard() {
           </Marker>
         ))}
       </MapContainer>
+      {loading && (
+        <div className="absolute inset-x-0 top-12 z-[1000] mx-auto flex w-fit flex-col items-center rounded-lg bg-white px-5 py-3 shadow-lg dark:bg-dark-2">
+          <div className="flex items-center gap-2 font-medium text-dark dark:text-white">
+            <Spinner />
+            Loading charging stations…
+          </div>
+          <SlowServerHint active={loading} />
+        </div>
+      )}
     </div>
   );
 }
