@@ -92,7 +92,7 @@ You need **Python 3.10+**, **Node.js 18+**, a **PostgreSQL** database (a free [N
 cd backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt requests
+pip install -r requirements.txt
 
 # 2. Create backend/.env (see "Environment variables" below)
 
