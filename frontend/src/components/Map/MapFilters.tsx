@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import TuneIcon from "@mui/icons-material/Tune";
 import ClickOutside from "@/components/ClickOutside";
-import { STATION_STATES, StationState } from "./stationStatus";
+import { STATION_STATES, StationState } from "@/lib/stations";
 
 export interface MapFilterValues {
   minPowerKw: number;

@@ -1,37 +1,8 @@
 import L from "leaflet";
+import { STATION_STATES, StationState } from "@/lib/stations";
 
-export type StationState = "available" | "in_use" | "maintenance" | "out_of_order";
-
-export const STATION_STATES: Record<
-  StationState,
-  { label: string; color: string }
-> = {
-  available: { label: "Available", color: "#22AD5C" },
-  in_use: { label: "In use", color: "#3B82F6" },
-  maintenance: { label: "Maintenance", color: "#F59E0B" },
-  out_of_order: { label: "Out of order", color: "#EF4444" },
-};
-
-interface StationForState {
-  availability_status: string;
-  reservations: { start_time: string; end_time: string }[];
-}
-
-// The operator's status wins; otherwise a booking covering "now" means in use.
-export const getStationState = (
-  station: StationForState,
-  now: Date = new Date(),
-): StationState => {
-  if (station.availability_status === "out_of_order") return "out_of_order";
-  if (station.availability_status === "maintenance") return "maintenance";
-
-  const isBookedNow = station.reservations.some(
-    (reservation) =>
-      new Date(reservation.start_time) <= now &&
-      new Date(reservation.end_time) >= now,
-  );
-  return isBookedNow ? "in_use" : "available";
-};
+export { STATION_STATES, getStationState } from "@/lib/stations";
+export type { StationState } from "@/lib/stations";
 
 // A map pin drawn as SVG, so each state can have its own colour without
 // separate image files.

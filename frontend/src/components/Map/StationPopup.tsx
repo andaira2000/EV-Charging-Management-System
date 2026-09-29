@@ -1,6 +1,13 @@
 import ReserveButton from "./ReserveButton";
 import NotifyButton from "./NotifyButton";
-import { STATION_STATES, StationState } from "./stationStatus";
+import {
+  CONNECTOR_LABELS,
+  SPEED_LABELS,
+  STATION_STATES,
+  StationState,
+  splitLocation,
+} from "@/lib/stations";
+import { formatDuration, formatPounds } from "@/lib/format";
 
 interface StationPopupProps {
   station: {
@@ -16,23 +23,6 @@ interface StationPopupProps {
   endTime: string;
 }
 
-const CONNECTOR_LABELS: Record<string, string> = {
-  type1: "Type 1",
-  type2: "Type 2",
-  ccs: "CCS",
-  chademo: "CHAdeMO",
-};
-
-const SPEED_LABELS: Record<string, string> = {
-  fast: "Fast",
-  slow: "Slow",
-};
-
-const formatPounds = (amount: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(
-    amount,
-  );
-
 // Leaflet styles <p> and <h*> inside popups, so this uses divs throughout.
 const StationPopup = ({
   station,
@@ -41,13 +31,13 @@ const StationPopup = ({
   endTime,
 }: StationPopupProps) => {
   const { label, color } = STATION_STATES[state];
-  const [name, ...addressParts] = station.location.split(",");
-  const address = addressParts.join(",").trim();
+  const { name, address } = splitLocation(station.location);
 
   const power = Number(station.power_capacity);
   const price = Number(station.price_per_kwh);
-  const hours =
-    (new Date(endTime).getTime() - new Date(startTime).getTime()) / 3_600_000;
+  const durationMs =
+    new Date(endTime).getTime() - new Date(startTime).getTime();
+  const hours = durationMs / 3_600_000;
   // Same formula the backend uses for the Stripe checkout amount.
   const estimatedCost = power * hours * price;
 
@@ -95,7 +85,7 @@ const StationPopup = ({
       {state === "available" && (
         <>
           <div className="text-sm">
-            {Math.round(hours * 60)} min from now ≈{" "}
+            {formatDuration(durationMs)} from now ≈{" "}
             <span className="font-semibold">{formatPounds(estimatedCost)}</span>
           </div>
           <ReserveButton
