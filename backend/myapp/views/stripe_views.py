@@ -128,7 +128,7 @@ def stripe_webhook(request):
         return JsonResponse({"error": str(e)}, status=400)
 
     if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
+        session = event["data"]["object"].to_dict()
         metadata = session.get("metadata", {})
         reservation_id = metadata.get("reservation_id")
         
