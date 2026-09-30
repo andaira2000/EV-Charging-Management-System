@@ -1,6 +1,5 @@
 import logging
 from typing import Any
-from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -8,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from myapp.models import Reservation, ChargingStation
+from myapp.models import Reservation
 from myapp.serializers import ReservationSerializer
 
 logger = logging.getLogger(__name__)
@@ -84,50 +83,6 @@ class UpdateReservationView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class MostVisitedStationView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        most_visited_station = (
-            Reservation.objects.values("charging_station_id")
-            .annotate(total_visits=Count("id"))
-            .order_by("-total_visits")
-            .first()
-        )
-
-        if most_visited_station:
-            station_id = most_visited_station["charging_station_id"]
-            station_details = (
-                ChargingStation.objects.filter(station_id=station_id)
-                .values(
-                    "location",
-                    "charging_speed",
-                    "power_capacity",
-                    "price_per_kwh",
-                    "connector_types",
-                )
-                .first()
-            )
-
-            if station_details:
-                return Response(
-                    {
-                        **station_details,
-                        "visits": most_visited_station["total_visits"],
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    {"error": "Charging station details not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-        else:
-            return Response(
-                {"error": "No reservations found."}, status=status.HTTP_404_NOT_FOUND
-            )
 
 
 class GetAllReservationsView(APIView):

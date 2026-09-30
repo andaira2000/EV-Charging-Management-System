@@ -19,7 +19,6 @@ from myapp.views.reservation_views import (
     GetUserReservationsView,
     CancelReservationView,
     UpdateReservationView,
-    MostVisitedStationView,
 )
 from myapp.views.stripe_views import (
     CreateCheckoutSessionView,
@@ -90,11 +89,6 @@ urlpatterns = [
         name="create-checkout-session",
     ),
     path("stripe-webhook/", stripe_webhook, name="stripe-webhook"),
-    path(
-        "reservations/most-visited/",
-        MostVisitedStationView.as_view(),
-        name="most-visited-station",
-    ),
     path("payments/", UserPaymentsView.as_view(), name="user_payments"),
     path("analytics/", SellerAnalyticsView.as_view(), name="seller-analytics"),
     path(
