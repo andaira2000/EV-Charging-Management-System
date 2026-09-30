@@ -35,7 +35,7 @@ cd EV-Charging-Management-System
 
 **If you drive an EV:**
 
-- **Where can I charge?** Every station appears on a Leaflet map with its connector type, charging speed, power and price per kWh. Filter by minimum power, distance and status.
+- **Where can I charge?** Every station appears on a Leaflet map, coloured by status (available, in use, maintenance, out of order), with its connector type, charging speed, power and price per kWh. Filter by status and minimum power.
 - **Will it be free when I get there?** Reservations are time-slotted, and overlapping bookings are rejected before you pay. The map updates live over WebSockets when someone else books or cancels.
 - **It's taken right now.** Hit **Notify me** and you get an email the moment the current booking ends.
 - **How much will it cost?** The price is calculated up front as `power (kW) × hours × price per kWh`, so there are no surprises at checkout.
@@ -45,7 +45,7 @@ cd EV-Charging-Management-System
 
 - **How do I get listed?** Add a station by address. It is geocoded to map coordinates automatically.
 - **Something broke?** Mark a station `available`, `out_of_order` or `maintenance`.
-- **Which stations are popular?** The **Analytics** page shows the most visited station.
+- **How is business going?** The **Analytics** page shows revenue, bookings, average session length and utilisation for the last 7, 30 or 90 days, compared with the period before, plus revenue per day, bookings per station and the busiest hours of the week.
 - **Who manages what?** Each operator sees and edits only their own stations.
 
 ## What it will not do
@@ -60,7 +60,7 @@ cd EV-Charging-Management-System
 
 | Feature                    | Description                                                                                                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Live Station Map**       | React-Leaflet map of all stations with filters, details, and **Reserve** / **Notify me** buttons on each marker                               |
+| **Live Station Map**       | React-Leaflet map of all stations with status-coloured pins and a legend, a filter panel, and a popup per station with the price estimate and **Reserve** / **Notify me** |
 | **Real-Time Availability** | Django Channels WebSocket (`/ws/reservations/`) pushes an update to every open map when a reservation is created or cancelled                 |
 | **Role-Based Accounts**    | `buyer` (driver) or `seller` (operator), chosen at sign-up. Sellers get the station management pages                                           |
 | **JWT Authentication**     | Sign up and sign in against the Django API. It issues signed JWTs (simplejwt, valid for 1 day), kept in cookies and validated by Next.js middleware on protected routes |
@@ -76,7 +76,7 @@ cd EV-Charging-Management-System
 | **Payments & Invoices**     | Payment history per user, with a PDF invoice generated in the browser (jsPDF)                          |
 | **Availability Emails**     | "Notify me" schedules a Celery task for the end of the current booking and sends an email via SMTP      |
 | **Unpaid Booking Cleanup**  | `cleanup_unpaid_reservation` is scheduled with Celery + Redis 30 minutes after each booking             |
-| **Analytics**               | Most visited station, by number of reservations                                                        |
+| **Operator Analytics**      | Revenue, bookings, average session and utilisation vs the previous period; revenue per day, bookings per station and a busy-hours heatmap, for 7 / 30 / 90 days. Each chart also has a table view |
 | **Auto Geocoding**          | Station addresses are turned into latitude/longitude through the OpenCage Geocoding API                  |
 | **Health Check**            | `GET /health/` returns `{"status": "ok"}`, used as Render's health check                                |
 | **Typed Backend**           | `mypy` config plus `djangorestframework-stubs` for type-checked Django code                             |
@@ -85,7 +85,7 @@ cd EV-Charging-Management-System
 
 ## Quick Start
 
-You need **Python 3.10+**, **Node.js 18+**, a **PostgreSQL** database (a free [Neon](https://neon.tech) project works), **Redis**, a **Stripe** account (test mode is fine), an **OpenCage** API key and an **SMTP** account for emails.
+You need **Python 3.12+**, **Node.js 18+**, a **PostgreSQL** database (a free [Neon](https://neon.tech) project works), **Redis**, a **Stripe** account (test mode is fine), an **OpenCage** API key and an **SMTP** account for emails.
 
 ```bash
 # 1. Backend
@@ -99,6 +99,11 @@ pip install -r requirements.txt
 # 3. Create the tables and start the API (Daphne serves HTTP + WebSockets)
 python manage.py migrate
 daphne -b 127.0.0.1 -p 8000 myproject.asgi:application
+
+# Optional: fill the analytics with six months of past demo bookings
+# (needs seller stations and buyers with example.com emails; run it again
+# later to top it up, or add --delete to remove it)
+python manage.py seed_demo_bookings
 
 # 4. Start the background worker (separate terminal, Redis must be running)
 celery -A myproject worker -l info
@@ -236,11 +241,11 @@ GET    /get-user-reservations/                    → My reservations
 GET    /get-all-reservations/                     → Booked time slots, grouped by station
 PUT    /reservations/<reservation_id>/update/     → Change a reservation
 DELETE /reservations/<reservation_id>/cancel/     → Cancel a reservation
-GET    /reservations/most-visited/                → Most visited station (analytics)
 
 POST   /create-checkout-session/                  → Reserve a slot + open Stripe Checkout
 POST   /stripe-webhook/                           → Stripe payment confirmation
 GET    /payments/                                 → My payment history
+GET    /analytics/?days=7|30|90                   → Revenue, bookings and busy hours for my stations (seller)
 
 POST   /notifications/request/                    → Email me when this station frees up
 
@@ -266,21 +271,25 @@ EV-Charging-Management-System/
 │       ├── routing.py                # /ws/reservations/
 │       ├── tasks.py                  # Unpaid cleanup + availability emails
 │       ├── utils.py                  # OpenCage geocoding
-│       └── views/                    # auth, stations, reservations, stripe, payments, notifications, health
+│       ├── management/commands/      # seed_demo_bookings (demo data for the analytics)
+│       └── views/                    # auth, stations, reservations, stripe, payments, analytics, notifications, health
 └── frontend/                         # Next.js 14 dashboard (Vercel)
     ├── .env.example                  # Template for .env.local (backend URLs)
     └── src/
         ├── middleware.ts             # Cookie-based route protection
         ├── server/requests.ts        # All API calls
         ├── hooks/useReservationUpdates.tsx   # WebSocket listener
+        ├── lib/                      # Formatting (£, dates) and station labels/colours
         ├── app/                      # dashboard, manage-charging-stations, reservations, payments, analytics, auth...
         └── components/
             ├── Dashboard/            # Station map
-            ├── Map/                  # Filters, Reserve + Notify me buttons
+            ├── Map/                  # Pins, legend, filter panel, popup, Reserve + Notify me
+            ├── Analytics/            # Operator dashboard: stat tiles and charts
             ├── ManageChargingStations/
             ├── Reservations/
             ├── Payments/             # Payment history + PDF invoices
-            └── Auth/                 # Sign in / sign up forms
+            ├── Auth/                 # Sign in / sign up forms
+            └── common/               # Tables, tabs, logo, spinner, loading hints
 ```
 
 ## Tech Stack
@@ -299,8 +308,9 @@ EV-Charging-Management-System/
 ![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=flat&logo=stripe&logoColor=white)
 ![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=flat&logo=leaflet&logoColor=white)
 
-- **Frontend**: Next.js 14 (App Router) + React 18 + TypeScript + Tailwind CSS + MUI, hosted on Vercel
+- **Frontend**: Next.js 14 (App Router) + React 18 + TypeScript + Tailwind CSS, hosted on Vercel
 - **Maps**: Leaflet + React-Leaflet
+- **Charts**: hand-built SVG and HTML (no chart library)
 - **Backend**: Django + Django REST Framework, served by Daphne
 - **Real-time**: Django Channels (WebSockets)
 - **Auth**: Django password hashing + JWTs (`djangorestframework-simplejwt`)
